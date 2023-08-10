@@ -81,6 +81,38 @@ services:
       - "postgres_backup:${POSTGRESQL_DB_BACKUP}"
     env_file: .env
 
+  keycloak:
+    container_name: keycloak
+    image: quay.io/keycloak/keycloak:21.1.1
+    command:
+      - "start --import-realm"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresql-db:${POSTGRESQL_DB_INTERNAL_PORT}/auth_server_db
+      KC_DB_USERNAME: ${POSTGRESQL_DB_USERNAME}
+      KC_DB_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+    volumes:
+      - type: bind
+        source: ./import/realm.json
+        target: /opt/keycloak/data/import/realm.json
+    ports:
+      - "${KEYCLOAK_EXTERNAL_PORT}:${KEYCLOAK_INTERNAL_PORT}"
+    depends_on:
+      postgresql-db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://${KEYCLOAK_HOST}:${KEYCLOAK_INTERNAL_PORT}/realms/master" ]
+      start_period: 10s
+      interval: 30s
+      retries: 3
+      timeout: 5s
+    env_file: .env
+
 volumes:
   postgres_data:
   postgres_backup:
